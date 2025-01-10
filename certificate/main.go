@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"liqs.net/tecent-cloud/ssl/client"
@@ -16,6 +18,17 @@ var (
 	contactEmail  string
 	contactPhone  string
 )
+
+func init() {
+	// 读取命令行参数
+	flag.StringVar(&secretId, "secretId", "", "腾讯云 secret id")
+	flag.StringVar(&secretKey, "secretKey", "", "腾讯云 secret key")
+	flag.StringVar(&certificateId, "certificateId", "", "证书 ID")
+	flag.StringVar(&domainName, "domain", "", "证书绑定域名")
+	flag.StringVar(&contactEmail, "email", "", "联系邮箱")
+	flag.StringVar(&contactPhone, "phone", "", "联系电话")
+	flag.Parse()
+}
 
 func main() {
 	var err error
@@ -51,28 +64,23 @@ func main() {
 	if err != nil {
 		fmt.Printf("下载失败：%v\n", err)
 	} else {
-		fmt.Printf("下载成功 --> %v\n", filename)	
+		fmt.Printf("下载成功 --> %v\n", filename)
 	}
 }
 
-func init() {
-	// 读取命令行参数
-	flag.StringVar(&secretId, "secretId", "", "腾讯云 secret id")
-	flag.StringVar(&secretKey, "secretKey", "", "腾讯云 secret key")
-	flag.StringVar(&certificateId, "certificateId", "", "证书 ID")
-	flag.StringVar(&domainName, "domain", "", "证书绑定域名")
-	flag.StringVar(&contactEmail, "email", "", "联系邮箱")
-	flag.StringVar(&contactPhone, "phone", "", "联系电话")
-	flag.Parse()
-}
-
-func waitingForReview(c client.Client) {
-	fmt.Println("正在查询审核结果，请勿退出...")
+func waitingForReview(c client.Client) error {
+	fmt.Println("正在查询证书状态，请勿退出...")
 
 	for {
 		certDetail, err := c.GetCertificateDetail(certificateId)
 		if err != nil {
-			fmt.Printf("获取证书信息失败：%v\n", err)
+			fmt.Printf("查询证书状态失败：%v\n", err)
+			if strings.Contains(err.Error(), "Code=FailedOperation.CertificateNotFound") {
+				os.Exit(1)
+			} else {
+				time.Sleep(20 * time.Second)
+				continue
+			}
 		}
 
 		status := *certDetail.Status
@@ -94,4 +102,6 @@ func waitingForReview(c client.Client) {
 
 		time.Sleep(10 * time.Second)
 	}
+
+	return nil
 }
