@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"liqs.net/tecent-cloud/ssl/client"
+	"liqs.net/cloud-tools/certificate/client"
 )
 
 var (
