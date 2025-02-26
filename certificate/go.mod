@@ -1,4 +1,4 @@
-module liqs.net/tecent-cloud/ssl
+module liqs.net/cloud-tools/certificate
 
 go 1.22.6
 
