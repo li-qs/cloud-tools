@@ -1,0 +1,14 @@
+# 服务地址
+endpoint: ssl.tencentcloudapi.com
+
+# 安全凭证 SecretId
+secretID: xxxxxx
+
+# 安全凭证 SecretKey
+secretKey: xxxxxx
+
+# 联系邮箱（证书状态更新时发送邮件通知）
+contactEmail: abc@example.com
+
+# 联系电话（证书状态更新时发送短信通知）
+contactPhone: 13900000000
