@@ -1,4 +1,4 @@
-APP_NAME = certificate-tool
+APP_NAME = certificate-cli
 SRC_FILES = main.go
 BUILD_DIR = build
 PLATFORMS = linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
