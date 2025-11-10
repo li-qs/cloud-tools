@@ -6,3 +6,5 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1064
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/ssl v1.0.1064
 )
+
+require github.com/goccy/go-yaml v1.18.0 // indirect
