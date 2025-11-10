@@ -1,32 +1,18 @@
-APP_NAME = certificate-cli
-SRC_FILES = main.go
-BUILD_DIR = build
-PLATFORMS = linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
+NAME=certificate-cli
+VERSION=$(shell git rev-parse --short HEAD)
+BIN_DIR=$(shell pwd)/build
+MAIN_DIR=$(shell pwd)/
 
-GO=go
+all: linux-amd64 darwin-amd64 windows-amd64 darwin-arm64
 
-.PHONY: all
-all: clean build
+linux-amd64:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(BIN_DIR)/$(NAME)-linux-amd64-$(VERSION) $(MAIN_DIR)
 
-.PHONY: build
-build:
-	@mkdir -p $(BUILD_DIR)
-	@for platform in $(PLATFORMS); do \
-		OS=$$(echo $$platform | cut -d/ -f1); \
-		ARCH=$$(echo $$platform | cut -d/ -f2); \
-		OUTPUT=$(BUILD_DIR)/$(APP_NAME)_$${OS}_$${ARCH}; \
-		[ "$$OS" = "windows" ] && OUTPUT=$$OUTPUT.exe; \
-		echo "Building for $$OS/$$ARCH..."; \
-		GOOS=$$OS GOARCH=$$ARCH $(GO) build -o $$OUTPUT $(SRC_FILES) || exit 1; \
-		echo "Built $$OUTPUT"; \
-	done
+darwin-amd64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $(BIN_DIR)/$(NAME)-darwin-amd64-$(VERSION) $(MAIN_DIR)
 
-.PHONY: clean
-clean:
-	@echo "Cleaning up build directory..."
-	@rm -rf $(BUILD_DIR)
-	@echo "Clean complete."
+windows-amd64:
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $(BIN_DIR)/$(NAME)-windows-amd64-$(VERSION).exe $(MAIN_DIR)
 
-.PHONY: run
-run: build
-	./$(BUILD_DIR)/$(APP_NAME)
+darwin-arm64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o $(BIN_DIR)/$(NAME)-darwin-arm64-$(VERSION) $(MAIN_DIR)
