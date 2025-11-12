@@ -47,7 +47,7 @@ func initConfig() {
 
 func initCommands() {
 	commands = map[string]func(args []string) error{
-		"help":     HelpInfo,
+		"help":     func(args []string) error { HelpInfo(); return nil },
 		"apply":    ApplyCertificate,
 		"list":     ListCertificates,
 		"detail":   DescribeCertificate,
@@ -61,6 +61,12 @@ func initCommands() {
 
 func main() {
 	parts := os.Args
+
+	if len(parts) == 1 {
+		HelpInfo()
+		return
+	}
+
 	cmd := parts[1]
 	args := parts[2:]
 
