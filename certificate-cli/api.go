@@ -100,7 +100,7 @@ func (a *Api) DownloadCertificate(certificateID string) (*ssl.DownloadCertificat
 	r.CertificateId = &certificateID
 	res, err := a.client.DownloadCertificate(r)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	if err != nil {
@@ -136,6 +136,17 @@ func (a *Api) DeleteMultiCertificates(certificateIDs []*string) (*ssl.DeleteCert
 	r := ssl.NewDeleteCertificatesRequest()
 	r.CertificateIds = certificateIDs
 	res, err := a.client.DeleteCertificates(r)
+	if err != nil {
+		return nil, err
+	}
+	return res.Response, nil
+}
+
+// 检查证书域名验证是否通过
+func (a *Api) CheckCertificateDomainVerification(certificateID string) (*ssl.CheckCertificateDomainVerificationResponseParams, error) {
+	r := ssl.NewCheckCertificateDomainVerificationRequest()
+	r.CertificateId = &certificateID
+	res, err := a.client.CheckCertificateDomainVerification(r)
 	if err != nil {
 		return nil, err
 	}

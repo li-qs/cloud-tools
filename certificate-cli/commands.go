@@ -222,3 +222,58 @@ func DeleteCertificate(args []string) error {
 
 	return nil
 }
+
+func CheckCertificateDomainVerification(args []string) error {
+	if len(args) != 1 {
+		return errors.New("参数错误！")
+	}
+
+	cID := args[0]
+	res, err := api.CheckCertificateDomainVerification(cID)
+	if err != nil {
+		return err
+	}
+
+	localCheckResult := ""
+	switch *res.VerificationResults[0].LocalCheck {
+	case 1:
+		localCheckResult = "验证通过"
+	case -1:
+		localCheckResult = "被限频 或 找不到 txt 记录"
+	case -2:
+		localCheckResult = "找不到 txt 记录"
+	case -3:
+	case -8:
+		localCheckResult = "找不到 ns 记录"
+	case -4:
+	case -9:
+		localCheckResult = "找不到文件"
+	case -5:
+	case -10:
+		localCheckResult = "文件不匹配"
+	case -6:
+		localCheckResult = "找不到 cname 记录"
+	case -7:
+		localCheckResult = "cname 记录不匹配"
+	}
+
+	caCheckResult := ""
+	switch *res.VerificationResults[0].CaCheck {
+	case -1:
+		caCheckResult = "未检测通过"
+	case 2:
+		caCheckResult = "检测通过"
+	}
+
+	fmt.Printf("绑定域名：%s\n证书是否已签发：%t\n验证类型：%s\n腾讯云检测结果：%s\nCA 检测结果：%s\n是否被限频拦截：%t\n失败原因：%s\n",
+		*res.VerificationResults[0].Domain,
+		*res.VerificationResults[0].Issued,
+		*res.VerificationResults[0].VerifyType,
+		localCheckResult,
+		caCheckResult,
+		*res.VerificationResults[0].Frequently,
+		*res.VerificationResults[0].LocalCheckFailReason,
+	)
+
+	return nil
+}

@@ -56,6 +56,7 @@ func initCommands() {
 		"url":      DescribeDownloadCertificateUrl,
 		"revoke":   RevokeCertificate,
 		"delete":   DeleteCertificate,
+		"verify":   CheckCertificateDomainVerification,
 	}
 }
 
