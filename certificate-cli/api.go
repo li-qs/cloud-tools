@@ -102,10 +102,6 @@ func (a *Api) DownloadCertificate(certificateID string) (*ssl.DownloadCertificat
 	if err != nil {
 		return nil, err
 	}
-
-	if err != nil {
-		return nil, err
-	}
 	return res.Response, nil
 }
 

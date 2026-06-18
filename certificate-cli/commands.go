@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 func ApplyCertificate(args []string) error {
@@ -151,23 +152,38 @@ func DescribeDownloadCertificateUrl(args []string) error {
 }
 
 func DownloadCertificate(args []string) error {
-	if len(args) != 2 {
-		return errors.New("参数错误！")
-	}
-
-	target := args[1]
-	if f, _ := os.Stat(target); f != nil {
-		p, _ := filepath.Abs(target)
-		return fmt.Errorf("file exists: %s", p)
-	}
-
-	dir := filepath.Dir(target)
-	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
-		dir, _ = filepath.Abs(dir)
-		return fmt.Errorf("no such directory: %s", dir)
+	if len(args) < 1 || len(args) > 2 {
+		return errors.New("参数错误！需要1个或2个参数")
 	}
 
 	cID := args[0]
+	var target string
+
+	if len(args) == 1 {
+		// 默认：当前目录下的 <cID>.zip
+		target = fmt.Sprintf("./%s.zip", cID)
+	} else {
+		argPath := args[1]
+		if strings.HasSuffix(argPath, string(os.PathSeparator)) {
+			// 是目录，拼接文件名
+			target = filepath.Join(argPath, cID+".zip")
+		} else {
+			// 不是目录，直接作为文件路径
+			target = argPath
+		}
+	}
+
+	dir := filepath.Dir(target)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		absDir, _ := filepath.Abs(dir)
+		return fmt.Errorf("无法创建目录 %s: %v", absDir, err)
+	}
+
+	if _, err := os.Stat(target); err == nil {
+		absPath, _ := filepath.Abs(target)
+		return fmt.Errorf("file exists: %s", absPath)
+	}
+
 	res, err := api.DownloadCertificate(cID)
 	if err != nil {
 		return err
