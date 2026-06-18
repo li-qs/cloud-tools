@@ -1,29 +1,46 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func ApplyCertificate(args []string) error {
-	if len(args) != 1 {
-		return errors.New("参数错误！")
+	if len(args) < 1 {
+		return errors.New("参数错误！至少需要一个域名")
 	}
 
-	domain := args[0]
-	res, err := api.ApplyCertificate(domain, config.ContactEmail, config.ContactPhone)
-	if err != nil {
-		return err
+	domains := args
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	var errs []string
+	for i, domain := range domains {
+		if i > 0 {
+			<-ticker.C
+		}
+		res, err := api.ApplyCertificate(domain, config.ContactEmail, config.ContactPhone)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", domain, err))
+			continue
+		}
+		fmt.Printf("%s 申请成功，证书ID：%s\n", domain, *res.CertificateId)
 	}
 
-	str, _ := json.MarshalIndent(*res, "", "  ")
-	fmt.Printf("申请成功！\n%s\n", str)
+	if len(errs) > 0 {
+		return fmt.Errorf("部分申请失败:\n%s", strings.Join(errs, "\n"))
+	}
 
 	return nil
 }
@@ -202,29 +219,46 @@ func DownloadCertificate(args []string) error {
 }
 
 func RevokeCertificate(args []string) error {
-	if len(args) != 1 {
-		return errors.New("参数错误！")
+	if len(args) < 1 {
+		return errors.New("参数错误！至少需要一个证书ID")
 	}
 
-	cID := args[0]
-	res, err := api.RevokeCertificate(cID)
-	if err != nil {
-		return err
+	certIDs := args
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	var errs []string
+	for i, certID := range certIDs {
+		if i > 0 {
+			<-ticker.C
+		}
+		_, err := api.RevokeCertificate(certID)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", certID, err))
+			continue
+		}
+		fmt.Printf("证书 %s 吊销成功！\n", certID)
 	}
 
-	str, _ := json.MarshalIndent(*res, "", "  ")
-	fmt.Printf("吊销成功！\n%s\n", str)
+	if len(errs) > 0 {
+		return fmt.Errorf("部分吊销失败:\n%s", strings.Join(errs, "\n"))
+	}
 
 	return nil
 }
 
 func DeleteCertificate(args []string) error {
-	if len(args) != 1 {
-		return errors.New("参数错误！")
+	if len(args) < 1 {
+		return errors.New("参数错误！至少需要一个证书ID")
 	}
 
-	cID := args[0]
-	res, err := api.DeleteCertificate(cID)
+	certIDs := args
+	certIDPtrs := make([]*string, len(certIDs))
+	for i := range certIDs {
+		certIDPtrs[i] = &certIDs[i]
+	}
+
+	res, err := api.DeleteMultiCertificates(certIDPtrs)
 	if err != nil {
 		return err
 	}
@@ -232,6 +266,130 @@ func DeleteCertificate(args []string) error {
 	str, _ := json.MarshalIndent(*res, "", "  ")
 	fmt.Printf("删除成功！\n%s\n", str)
 
+	return nil
+}
+
+func BatchDownloadCertificate(args []string) error {
+	if len(args) < 2 {
+		return errors.New("参数错误！需要指定文件夹路径和至少一个证书ID")
+	}
+
+	folder := args[0]
+	certIDs := args[1:]
+
+	var errs []string
+	for _, certID := range certIDs {
+		target := filepath.Join(folder, certID+".zip")
+
+		dir := filepath.Dir(target)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: 无法创建目录: %v", certID, err))
+			continue
+		}
+
+		if _, err := os.Stat(target); err == nil {
+			errs = append(errs, fmt.Sprintf("%s: 文件已存在: %s", certID, target))
+			continue
+		}
+
+		res, err := api.DownloadCertificate(certID)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", certID, err))
+			continue
+		}
+
+		content, err := base64.StdEncoding.DecodeString(*res.Content)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: 解码失败: %v", certID, err))
+			continue
+		}
+
+		if err := os.WriteFile(target, content, 0644); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: 写入失败: %v", certID, err))
+			continue
+		}
+
+		fmt.Printf("已下载: %s -> %s\n", certID, target)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("部分下载失败:\n%s", strings.Join(errs, "\n"))
+	}
+
+	return nil
+}
+
+func DeployCertificate(args []string) error {
+	if len(args) != 3 {
+		return errors.New("参数错误！用法: deploy <证书ID> <Apache/IIS/Nginx/Tomcat> <指定文件夹>")
+	}
+
+	certID := args[0]
+	serverType := strings.ToLower(args[1])
+	targetDir := args[2]
+
+	validTypes := map[string]bool{"apache": true, "iis": true, "nginx": true, "tomcat": true}
+	if !validTypes[serverType] {
+		return fmt.Errorf("不支持的服务器类型: %s，可选: Apache, IIS, Nginx, Tomcat", args[1])
+	}
+
+	res, err := api.DownloadCertificate(certID)
+	if err != nil {
+		return err
+	}
+
+	content, err := base64.StdEncoding.DecodeString(*res.Content)
+	if err != nil {
+		return err
+	}
+
+	zipReader, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))
+	if err != nil {
+		return fmt.Errorf("解析ZIP失败: %v", err)
+	}
+
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("无法创建目录 %s: %v", targetDir, err)
+	}
+
+	deployed := 0
+	for _, f := range zipReader.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		parentDir := path.Base(path.Dir(f.Name))
+		if !strings.EqualFold(parentDir, serverType) {
+			continue
+		}
+
+		fileName := path.Base(f.Name)
+		targetPath := filepath.Join(targetDir, fileName)
+
+		rc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("无法读取ZIP内文件 %s: %v", f.Name, err)
+		}
+
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(targetPath, data, 0644); err != nil {
+			return fmt.Errorf("写入文件失败 %s: %v", targetPath, err)
+		}
+
+		fmt.Printf("已部署: %s -> %s\n", fileName, targetPath)
+		deployed++
+	}
+
+	if deployed == 0 {
+		return fmt.Errorf("证书ZIP中未找到 %s 类型的文件", args[1])
+	}
+
+	fmt.Printf("共部署 %d 个文件至 %s\n", deployed, targetDir)
 	return nil
 }
 
