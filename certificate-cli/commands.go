@@ -55,26 +55,22 @@ func ListCertificates(args []string) error {
 	}
 
 	fmt.Printf("证书总数：%d，本页：%d，页码：%d，每页：%d\n", *res.TotalCount, len(res.Certificates), page, pageSize)
-	fmt.Printf("%s	%s	%s	%s	%s	%s	%s	%s\n",
+	fmt.Printf("%s	%s	%s	%s	%s	%s\n",
 		"证书ID",
-		"主域名",
-		"有效时间",
+		"绑定域名",
+		"到期时间",
 		"创建时间",
-		"验证类型",
 		"证书类型",
 		"状态",
-		"备注",
 	)
 	for _, cert := range res.Certificates {
-		fmt.Printf("%s	%s	%s	%s	%s	%s	%s	%s\n",
+		fmt.Printf("%s	%s	%s	%s	%s	%s\n",
 			*cert.CertificateId,
 			*cert.Domain,
-			*cert.CertBeginTime+" 至 "+*cert.CertEndTime+"（"+*cert.ValidityPeriod+"个月）",
+			*cert.CertEndTime,
 			*cert.InsertTime,
-			*cert.VerifyType,
 			*cert.PackageTypeName,
 			*cert.StatusName,
-			*cert.Alias,
 		)
 	}
 
